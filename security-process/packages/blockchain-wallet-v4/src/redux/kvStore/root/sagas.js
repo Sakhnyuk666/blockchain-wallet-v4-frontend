@@ -32,8 +32,7 @@ export default ({ api, networks }) => {
         KVStoreEntry.getMasterHDNode(networks.btc)
       )
       const metadataNode = getMetadataNode(seedHex)
-      const metadata = metadataNode.toBase58()
-      yield put(A.updateMetadataRoot({ metadata }))
+      return metadataNode.toBase58()
     } catch (e) {
       throw new Error('create root Metadata :: Error decrypting mnemonic')
     }
@@ -64,6 +63,7 @@ export default ({ api, networks }) => {
   }
 
   return {
+    createRoot,
     fetchRoot
   }
 }

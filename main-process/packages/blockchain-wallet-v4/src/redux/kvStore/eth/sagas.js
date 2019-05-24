@@ -1,4 +1,4 @@
-import { head, prop, isNil, isEmpty } from 'ramda'
+import { curry, head, prop, isNil, isEmpty } from 'ramda'
 import { call, put, select } from 'redux-saga/effects'
 import { set } from 'ramda-lens'
 import * as A from './actions'
@@ -7,24 +7,25 @@ import { KVStoreEntry } from '../../../types'
 import { getMetadataXpriv } from '../root/selectors'
 import { derivationMap, ETHEREUM } from '../config'
 import * as eth from '../../../utils/eth'
-import { getMnemonic } from '../../wallet/selectors'
+
+import { getPbkdf2Iterations } from '../../wallet/selectors'
 import { callTask } from '../../../utils/functional'
 
-export default ({ api, networks } = {}) => {
-  const deriveAccount = function*(password) {
-    try {
-      const obtainMnemonic = state => getMnemonic(state, password)
-      const mnemonicT = yield select(obtainMnemonic)
-      const mnemonic = yield callTask(mnemonicT)
-      const defaultIndex = 0
-      const addr = eth.deriveAddress(mnemonic, defaultIndex)
+export default ({ api, networks, securityProcess } = {}) => {
+  const deriveAccount = function*(secondPassword) {
+    const defaultIndex = 0
 
-      return { defaultIndex, addr }
-    } catch (e) {
-      throw new Error(
-        '[NOT IMPLEMENTED] MISSING_SECOND_PASSWORD in core.createEthereum saga'
-      )
+    const credentials = {
+      iterations: yield select(getPbkdf2Iterations),
+      secondPassword
     }
+
+    const addr = yield call(eth.deriveAddress, {
+      deriveBIP32Key: curry(securityProcess.deriveBIP32Key)(credentials),
+      index: defaultIndex
+    })
+
+    return { defaultIndex, addr }
   }
 
   const createEthereum = function*({ kv, password }) {

@@ -11,6 +11,7 @@ import { MediaContextProvider } from 'providers/MatchMediaProvider'
 import ConnectedIntlProvider from 'providers/ConnectedIntlProvider'
 import ThemeProvider from 'providers/ThemeProvider'
 import PublicLayout from 'layouts/Public'
+import SecurityLayout from 'layouts/Security'
 import WalletLayout from 'layouts/Wallet'
 import AuthorizeLogin from './AuthorizeLogin'
 import BuySell from './BuySell'
@@ -113,7 +114,7 @@ class App extends React.PureComponent {
                       component={ExchangeProfile}
                     />
                     <WalletLayout path='/swap' component={Exchange} exact />
-                    <WalletLayout
+                    <SecurityLayout
                       path='/security-center'
                       component={SecurityCenter}
                     />

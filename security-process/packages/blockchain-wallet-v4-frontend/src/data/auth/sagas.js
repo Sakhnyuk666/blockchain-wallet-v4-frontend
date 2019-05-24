@@ -1,4 +1,4 @@
-import { call, put, select, take, fork } from 'redux-saga/effects'
+import { call, put, select, take } from 'redux-saga/effects'
 import { delay } from 'redux-saga'
 import { assoc, path, prop, is } from 'ramda'
 
@@ -8,7 +8,6 @@ import * as selectors from '../selectors.js'
 import * as C from 'services/AlertService'
 import * as CC from 'services/ConfirmService'
 import {
-  askSecondPasswordEnhancer,
   confirm,
   promptForSecondPassword,
   forceSyncWallet
@@ -92,61 +91,15 @@ export default ({ api, coreSagas }) => {
     if (userFlowSupported) yield put(actions.modules.profile.signIn())
   }
 
-  const loginRoutineSaga = function*(mobileLogin, firstLogin) {
+  const loginRoutineSaga = function*() {
     try {
-      // If needed, the user should upgrade its wallet before being able to open the wallet
-      const isHdWallet = yield select(selectors.core.wallet.isHdWallet)
-      if (!isHdWallet) {
-        yield call(upgradeWalletSaga)
-      }
       yield put(actions.auth.authenticate())
-      yield call(coreSagas.kvStore.root.fetchRoot, askSecondPasswordEnhancer)
-      // If there was no ethereum metadata kv store entry, we need to create one and that requires the second password.
-      yield call(
-        coreSagas.kvStore.ethereum.fetchMetadataEthereum,
-        askSecondPasswordEnhancer
-      )
-      yield call(
-        coreSagas.kvStore.xlm.fetchMetadataXlm,
-        askSecondPasswordEnhancer
-      )
-      yield call(coreSagas.kvStore.bch.fetchMetadataBch)
-      yield call(coreSagas.kvStore.bsv.fetchMetadataBsv)
-      yield call(coreSagas.kvStore.lockbox.fetchMetadataLockbox)
-      yield put(actions.middleware.webSocket.bch.startSocket())
-      yield put(actions.middleware.webSocket.btc.startSocket())
-      yield put(actions.middleware.webSocket.eth.startSocket())
-      yield put(actions.middleware.webSocket.xlm.startStreams())
-      yield put(actions.router.push('/home'))
-      yield call(coreSagas.settings.fetchSettings)
-      yield call(coreSagas.data.xlm.fetchLedgerDetails)
-      yield call(coreSagas.data.xlm.fetchData)
-      yield call(authNabu)
-      yield call(upgradeAddressLabelsSaga)
-      yield put(actions.auth.loginSuccess())
-      yield put(actions.auth.startLogoutTimer())
       // store guid in cache for future logins
       const guid = yield select(selectors.core.wallet.getGuid)
       yield put(actions.cache.guidEntered(guid))
       // reset auth type and clear previous login form state
       yield put(actions.auth.setAuthType(0))
       yield put(actions.form.destroy('login'))
-      // set payload language to settings language
-      const language = yield select(selectors.preferences.getLanguage)
-      yield put(actions.modules.settings.updateLanguage(language))
-      yield fork(transferEthSaga)
-      // TODO @analytics.logEvent login flow
-      // yield fork(reportStats, mobileLogin)
-      yield put(actions.goals.saveGoal('welcome', { firstLogin }))
-      yield put(actions.goals.saveGoal('swapUpgrade'))
-      yield put(actions.goals.saveGoal('kyc'))
-      yield put(actions.goals.runGoals())
-      yield fork(checkDataErrors)
-      yield put(actions.analytics.reportBalanceStats())
-      yield fork(logoutRoutine, yield call(setLogoutEventListener))
-      if (!firstLogin) {
-        yield put(actions.alerts.displaySuccess(C.LOGIN_SUCCESS))
-      }
     } catch (e) {
       yield put(
         actions.logs.logErrorMessage(logLocation, 'loginRoutineSaga', e)
@@ -222,7 +175,7 @@ export default ({ api, coreSagas }) => {
         password,
         code
       })
-      yield call(loginRoutineSaga, mobileLogin)
+      yield put(actions.auth.loginRoutine(mobileLogin))
     } catch (error) {
       const initialError = prop('initial_error', error)
       const authRequired = prop('authorization_required', error)
@@ -245,7 +198,7 @@ export default ({ api, coreSagas }) => {
               session,
               password
             })
-            yield call(loginRoutineSaga, mobileLogin)
+            yield put(actions.auth.loginRoutine(mobileLogin))
           } catch (error) {
             if (error && error.auth_type > 0) {
               yield put(actions.auth.setAuthType(error.auth_type))
@@ -334,7 +287,12 @@ export default ({ api, coreSagas }) => {
       yield put(actions.alerts.displayInfo(C.CREATE_WALLET_INFO))
       yield call(coreSagas.wallet.createWalletSaga, action.payload)
       yield put(actions.alerts.displaySuccess(C.REGISTER_SUCCESS))
-      yield call(loginRoutineSaga, false, true)
+
+      // Temporarily send the whole wrapper over to the Main Process.
+      const wrapper = yield select(selectors.core.wallet.getWrapper)
+      yield put(actions.core.wallet.setWrapper(wrapper))
+
+      yield put(actions.auth.loginRoutine(false, true))
       yield put(actions.auth.registerSuccess())
     } catch (e) {
       yield put(actions.auth.registerFailure())
@@ -349,7 +307,7 @@ export default ({ api, coreSagas }) => {
       yield put(actions.alerts.displayInfo(C.RESTORE_WALLET_INFO))
       yield call(coreSagas.wallet.restoreWalletSaga, action.payload)
       yield put(actions.alerts.displaySuccess(C.RESTORE_SUCCESS))
-      yield call(loginRoutineSaga, false, true)
+      yield put(actions.auth.loginRoutine(false, true))
       yield put(actions.auth.restoreSuccess())
     } catch (e) {
       yield put(actions.auth.restoreFailure())

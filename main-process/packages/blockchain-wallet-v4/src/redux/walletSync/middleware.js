@@ -1,9 +1,7 @@
-import { futurizeP } from 'futurize'
-import Task from 'data.task'
+import * as A from '../actions'
+
 import {
   compose,
-  assoc,
-  join,
   curry,
   range,
   keysIn,
@@ -15,9 +13,8 @@ import {
 } from 'ramda'
 import { networks } from 'bitcoinjs-lib'
 
-import * as A from '../actions'
 import * as T from '../actionTypes'
-import { Wrapper, Wallet, HDAccount } from '../../types'
+import { Wallet, HDAccount } from '../../types'
 import * as selectors from '../selectors'
 
 /**
@@ -93,81 +90,44 @@ export const getWalletAddresses = async (state, api) => {
   return activeAddresses.concat(uniq(hdAddresses.concat(unusedAddresses)))
 }
 
+export const shouldSync = ({
+  actionType,
+  newAuthenticated,
+  newWallet,
+  oldAuthenticated,
+  oldWallet
+}) =>
+  actionType === T.walletSync.FORCE_SYNC ||
+  (oldAuthenticated &&
+    newAuthenticated &&
+    actionType !== T.wallet.SET_PAYLOAD_CHECKSUM &&
+    actionType !== T.wallet.REFRESH_WRAPPER &&
+    // Easily know when to sync, because of ✨immutable✨ data
+    // the initial_state check could be done against full payload state
+    oldWallet !== newWallet)
+
 /**
  * Wallet sync middleware
  * Calls sync on special conditions
  *
  * TODO: refactor to sagas, VERY painful to test/write mocks
  */
-const walletSync = ({
-  isAuthenticated,
-  api
-} = {}) => store => next => action => {
-  const prevState = store.getState()
-  const prevWallet = selectors.wallet.getWrapper(prevState)
-  const wasAuth = isAuthenticated(prevState)
+const walletSync = ({ isAuthenticated } = {}) => store => next => action => {
+  const oldState = store.getState()
   const result = next(action)
+  const newState = store.getState()
+  const newWallet = selectors.wallet.getWrapper(newState)
 
-  const state = store.getState()
-  const nextWallet = selectors.wallet.getWrapper(state)
-  const syncPubKeys = selectors.wallet.shouldSyncPubKeys(state)
-  const isAuth = isAuthenticated(state)
-  const promiseToTask = futurizeP(Task)
-
-  // Easily know when to sync, because of ✨immutable✨ data
-  // the initial_state check could be done against full payload state
-
-  const handleChecksum = encrypted => {
-    const checksum = Wrapper.computeChecksum(encrypted)
-    compose(
-      store.dispatch,
-      A.wallet.setPayloadChecksum
-    )(checksum)
-    return encrypted
-  }
-
-  const sync = async () => {
-    let encryptedWallet = Wrapper.toEncJSON(nextWallet)
-    if (syncPubKeys) {
-      /**
-       * To get notifications working you have to add list of lookahead addresses
-       * For each of the wallet's accounts
-       */
-      try {
-        const addresses = await getWalletAddresses(state, api)
-        encryptedWallet = encryptedWallet.map(
-          assoc('active', join('|', addresses))
-        )
-      } catch (error) {
-        return store.dispatch(A.walletSync.syncError(error))
-      }
-    }
-    return encryptedWallet
-      .map(handleChecksum)
-      .chain(promiseToTask(api.savePayload))
-      .fork(
-        compose(
-          store.dispatch,
-          A.walletSync.syncError
-        ),
-        compose(
-          store.dispatch,
-          A.walletSync.syncSuccess
-        )
-      )
-  }
-
-  switch (true) {
-    case action.type === T.walletSync.FORCE_SYNC:
-    case wasAuth &&
-      isAuth &&
-      action.type !== T.wallet.SET_PAYLOAD_CHECKSUM &&
-      action.type !== T.wallet.REFRESH_WRAPPER &&
-      prevWallet !== nextWallet:
-      sync()
-      break
-    default:
-      break
+  if (
+    shouldSync({
+      actionType: action.type,
+      newAuthenticated: isAuthenticated(newState),
+      newWallet,
+      oldAuthenticated: isAuthenticated(oldState),
+      oldWallet: selectors.wallet.getWrapper(oldState)
+    })
+  ) {
+    store.dispatch(A.wallet.mergeWrapper(newWallet))
   }
 
   return result

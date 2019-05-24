@@ -27,7 +27,6 @@ export class Wrapper extends Type {}
 export const isWrapper = is(Wrapper)
 
 export const pbkdf2Iterations = Wrapper.define('pbkdf2_iterations')
-export const password = Wrapper.define('password')
 export const version = Wrapper.define('version')
 export const payloadChecksum = Wrapper.define('payload_checksum')
 export const language = Wrapper.define('language')
@@ -38,7 +37,6 @@ export const realAuthType = Wrapper.define('real_auth_type')
 export const wallet = Wrapper.define('wallet')
 
 export const selectPbkdf2Iterations = view(pbkdf2Iterations)
-export const selectPassword = view(password)
 export const selectVersion = view(version)
 export const selectPayloadChecksum = view(payloadChecksum)
 export const selectLanguage = view(language)
@@ -137,38 +135,10 @@ export const fromEncPayload = curry((password, payload) => {
     .map(fromJS)
 })
 
-// toEncJSON :: Wrapper -> Either Error JSON
-export const toEncJSON = wrapper => {
-  const plens = lensProp('payload')
-  const response = {
-    guid: compose(
-      Wallet.selectGuid,
-      selectWallet
-    )(wrapper),
-    sharedKey: compose(
-      Wallet.selectSharedKey,
-      selectWallet
-    )(wrapper),
-    payload: selectWallet(wrapper),
-    old_checksum: selectPayloadChecksum(wrapper),
-    language: selectLanguage(wrapper)
-  }
-  const encrypt = Wallet.toEncryptedPayload(
-    selectPassword(wrapper),
-    selectPbkdf2Iterations(wrapper) || 5000
-  )
-  const hash = x => crypto.sha256(x).toString('hex')
-  return traverseOf(plens, Task.of, encrypt, response)
-    .map(r => assoc('length', view(plens, r).length, r))
-    .map(r => assoc('checksum', hash(view(plens, r)), r))
-}
-
 export const js = (
-  password,
   guid,
   sharedKey,
   label,
-  mnemonic,
   xpub,
   language,
   nAccounts = 1,
@@ -179,9 +149,8 @@ export const js = (
   storage_token: '',
   version: 3,
   language: language,
-  wallet: Wallet.js(guid, sharedKey, label, mnemonic, xpub, nAccounts, network),
+  wallet: Wallet.js(guid, sharedKey, label, xpub, nAccounts, network),
   war_checksum: '',
-  password: password,
   pbkdf2_iterations: 5000
 })
 
@@ -226,4 +195,4 @@ export const createNew = (
 export const createNewReadOnly = (
   xpub,
   firstAccountName = 'My read-only Wallet'
-) => fromJS(js('', '', '', firstAccountName, undefined, xpub, 1))
+) => fromJS(js('', '', firstAccountName, undefined, xpub, 1))

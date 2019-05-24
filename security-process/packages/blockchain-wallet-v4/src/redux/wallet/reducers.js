@@ -8,6 +8,14 @@ export const WRAPPER_INITIAL_STATE = Wrapper.fromJS(
   Wrapper.createNewReadOnly('', '')
 )
 
+// an object containing reducer methods for each type of action
+const reducers = {}
+
+// MERGE_WRAPPER: Merge wrapper from the Main Process.
+reducers[T.MERGE_WRAPPER] = (state, { payload }) => state.mergeDeep(payload)
+
+//
+
 export const wrapperReducer = (state = WRAPPER_INITIAL_STATE, action) => {
   const { type } = action
   switch (type) {
@@ -110,8 +118,13 @@ export const wrapperReducer = (state = WRAPPER_INITIAL_STATE, action) => {
       )
       return set(mvLens, true, state)
     }
-    default:
-      return state
+    default: {
+      if (type in reducers) {
+        return reducers[type](state, action)
+      } else {
+        return state
+      }
+    }
   }
 }
 

@@ -24,9 +24,10 @@ export default ({
   apiKey,
   getAuthCredentials,
   reauthenticate,
-  networks
+  networks,
+  securityProcess
 } = {}) => {
-  const http = httpService({ apiKey })
+  const http = httpService({ apiKey, securityProcess })
   const authorizedHttp = apiAuthorize(http, getAuthCredentials, reauthenticate)
   const apiUrl = options.domains.api
   const horizonUrl = options.domains.horizon
@@ -59,7 +60,7 @@ export default ({
       ...http
     }),
     ...sfox(),
-    ...settings({ rootUrl, ...http }),
+    ...settings({ securityProcess }),
     ...shapeShift({ shapeShiftApiKey, ...http }),
     ...rates({ nabuUrl, ...authorizedHttp }),
     ...trades({ nabuUrl, ...authorizedHttp }),

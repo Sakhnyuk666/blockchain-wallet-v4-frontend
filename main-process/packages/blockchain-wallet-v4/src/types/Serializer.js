@@ -30,7 +30,9 @@ const serializer = {
     return value
   },
   reviver: function (key, value) {
-    if (
+    if (value && value.type === 'Buffer') {
+      return Buffer.from(value.data)
+    } else if (
       typeof value === 'object' &&
       value !== null &&
       '__serializedType__' in value

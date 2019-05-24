@@ -30,7 +30,7 @@ import { generateMnemonic } from '../../walletCrypto'
 const taskToPromise = t =>
   new Promise((resolve, reject) => t.fork(reject, resolve))
 
-export default ({ api, networks }) => {
+export default ({ api, networks, securityProcess }) => {
   const runTask = function*(task, setActionCreator) {
     let result = yield call(
       compose(
@@ -80,7 +80,12 @@ export default ({ api, networks }) => {
     let wrapper = yield select(S.getWrapper)
     let nextWrapper = Wrapper.traverseWallet(
       Task.of,
-      Wallet.newHDAccount(label, password, networks.btc),
+      Wallet.newHDAccount({
+        deriveBIP32Key: securityProcess.deriveBIP32Key,
+        label,
+        network: networks.btc,
+        secondPassword: password
+      }),
       wrapper
     )
     yield call(runTask, nextWrapper, A.wallet.setWrapper)

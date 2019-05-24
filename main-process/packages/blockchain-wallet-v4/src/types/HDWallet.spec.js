@@ -12,12 +12,6 @@ describe('HDWallet', () => {
     })
   })
 
-  describe('properties', () => {
-    it('should have a seedHex', () => {
-      expect(hdWallet.seedHex).toEqual(hdWalletFixture.seed_hex)
-    })
-  })
-
   // describe('createNew', () => {
   //   const { wallet, mnemonic } = walletNewFixture
   //   const hdWallet = HDWallet.createNew(mnemonic)

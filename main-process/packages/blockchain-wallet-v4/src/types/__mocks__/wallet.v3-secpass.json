@@ -44,8 +44,6 @@
   ],
   "hd_wallets": [
     {
-      "seed_hex": "YSxSY3q6gfjrmVoRg8GbJU9gyqFFQxitGEmxBKbmE40av+Daa/WIBQf2yguYlrEKPd5O2fgrJVmw9Otf2iVH5w==",
-      "passphrase": "",
       "mnemonic_verified": false,
       "default_account_idx": 0,
       "accounts": [

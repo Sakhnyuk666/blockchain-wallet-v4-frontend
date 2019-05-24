@@ -18,6 +18,8 @@ import {
 } from 'blockchain-wallet-v4/src/network'
 import { serializer } from 'blockchain-wallet-v4/src/types'
 import { actions, rootSaga, rootReducer, selectors } from 'data'
+import IPC from '../IPC'
+
 import {
   autoDisconnection,
   streamingXlm,
@@ -29,6 +31,7 @@ import {
 
 const devToolsConfig = {
   maxAge: 1000,
+  name: `Root Document`,
   serialize: serializer,
   actionsBlacklist: [
     // '@@redux-form/INITIALIZE',
@@ -43,7 +46,7 @@ const devToolsConfig = {
   ]
 }
 
-const configureStore = () => {
+export default IPC(async IPCmiddleware => {
   const history = createHashHistory()
   const sagaMiddleware = createSagaMiddleware()
   const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__
@@ -53,108 +56,108 @@ const configureStore = () => {
   const kvStorePath = 'wallet.kvstore'
   const isAuthenticated = selectors.auth.isAuthenticated
 
-  return fetch('/Resources/wallet-options-v4.json')
-    .then(res => res.json())
-    .then(options => {
-      const apiKey = '1770d5d9-bcea-4d28-ad21-6cbd5be018a8'
-      // TODO: deprecate when wallet-options-v4 is updated on prod
-      const socketUrl = head(options.domains.webSocket.split('/inv'))
-      const horizonUrl = options.domains.horizon
-      const btcSocket = new Socket({
-        options,
-        url: `${socketUrl}/inv`
-      })
-      const bchSocket = new Socket({
-        options,
-        url: `${socketUrl}/bch/inv`
-      })
-      const ethSocket = new Socket({
-        options,
-        url: `${socketUrl}/eth/inv`
-      })
-      const ratesSocket = new ApiSocket({
-        options,
-        url: `${socketUrl}/nabu-gateway/markets/quotes`,
-        maxReconnects: 3
-      })
-      const xlmStreamingService = new HorizonStreamingService({
-        url: horizonUrl
-      })
-      const getAuthCredentials = () =>
-        selectors.modules.profile.getAuthCredentials(store.getState())
-      const reauthenticate = () =>
-        store.dispatch(actions.modules.profile.signIn())
-      const networks = {
-        btc: Bitcoin.networks[options.platforms.web.btc.config.network],
-        bch: BitcoinCash.networks[options.platforms.web.btc.config.network],
-        bsv: BitcoinCash.networks[options.platforms.web.btc.config.network],
-        eth: options.platforms.web.eth.config.network,
-        xlm: options.platforms.web.xlm.config.network
-      }
-      const api = createWalletApi({
-        options,
-        apiKey,
-        getAuthCredentials,
-        reauthenticate,
-        networks
-      })
-      const persistWhitelist = ['session', 'preferences', 'cache']
+  const options = await (await fetch(
+    '/Resources/wallet-options-v4.json'
+  )).json()
 
-      // TODO: remove getStoredStateMigrateV4 someday (at least a year from now)
-      const store = createStore(
-        connectRouter(history)(
-          persistCombineReducers(
-            {
-              getStoredState: getStoredStateMigrateV4({
-                whitelist: persistWhitelist
-              }),
-              key: 'root',
-              storage,
-              whitelist: persistWhitelist
-            },
-            rootReducer
-          )
-        ),
-        composeEnhancers(
-          applyMiddleware(
-            sagaMiddleware,
-            routerMiddleware(history),
-            coreMiddleware.kvStore({ isAuthenticated, api, kvStorePath }),
-            webSocketBtc(btcSocket),
-            webSocketBch(bchSocket),
-            webSocketEth(ethSocket),
-            streamingXlm(xlmStreamingService, api),
-            webSocketRates(ratesSocket),
-            coreMiddleware.walletSync({ isAuthenticated, api, walletPath }),
-            autoDisconnection()
-          )
-        )
+  const apiKey = '1770d5d9-bcea-4d28-ad21-6cbd5be018a8'
+  // TODO: deprecate when wallet-options-v4 is updated on prod
+  const socketUrl = head(options.domains.webSocket.split('/inv'))
+  const horizonUrl = options.domains.horizon
+  const btcSocket = new Socket({
+    options,
+    url: `${socketUrl}/inv`
+  })
+  const bchSocket = new Socket({
+    options,
+    url: `${socketUrl}/bch/inv`
+  })
+  const ethSocket = new Socket({
+    options,
+    url: `${socketUrl}/eth/inv`
+  })
+  const ratesSocket = new ApiSocket({
+    options,
+    url: `${socketUrl}/nabu-gateway/markets/quotes`,
+    maxReconnects: 3
+  })
+  const xlmStreamingService = new HorizonStreamingService({
+    url: horizonUrl
+  })
+
+  const getAuthCredentials = () =>
+    selectors.modules.profile.getAuthCredentials(store.getState())
+  const reauthenticate = () => store.dispatch(actions.modules.profile.signIn())
+  const networks = {
+    btc: Bitcoin.networks[options.platforms.web.btc.config.network],
+    bch: BitcoinCash.networks[options.platforms.web.btc.config.network],
+    bsv: BitcoinCash.networks[options.platforms.web.btc.config.network],
+    eth: options.platforms.web.eth.config.network,
+    xlm: options.platforms.web.xlm.config.network
+  }
+  const api = createWalletApi({
+    options,
+    apiKey,
+    getAuthCredentials,
+    reauthenticate,
+    networks
+  })
+  const persistWhitelist = ['session', 'preferences', 'cache']
+
+  // TODO: remove getStoredStateMigrateV4 someday (at least a year from now)
+  const store = createStore(
+    connectRouter(history)(
+      persistCombineReducers(
+        {
+          getStoredState: getStoredStateMigrateV4({
+            whitelist: persistWhitelist
+          }),
+          key: 'root',
+          storage,
+          whitelist: persistWhitelist
+        },
+        rootReducer
       )
-      const persistor = persistStore(store, null)
+    ),
+    composeEnhancers(
+      applyMiddleware(
+        IPCmiddleware,
+        sagaMiddleware,
+        routerMiddleware(history),
+        coreMiddleware.kvStore({ isAuthenticated, api, kvStorePath }),
+        webSocketBtc(btcSocket),
+        webSocketBch(bchSocket),
+        webSocketEth(ethSocket),
+        streamingXlm(xlmStreamingService, api),
+        webSocketRates(ratesSocket),
+        coreMiddleware.walletSync({ isAuthenticated, api, walletPath }),
+        autoDisconnection()
+      )
+    )
+  )
+  const persistor = persistStore(store, null)
 
-      sagaMiddleware.run(rootSaga, {
-        api,
-        bchSocket,
-        btcSocket,
-        ethSocket,
-        ratesSocket,
-        networks,
-        options
-      })
+  sagaMiddleware.run(rootSaga, {
+    api,
+    bchSocket,
+    btcSocket,
+    ethSocket,
+    ratesSocket,
+    networks,
+    options
+  })
 
-      // expose globals here
-      window.createTestXlmAccounts = () => {
-        store.dispatch(actions.core.data.xlm.createTestAccounts())
-      }
+  // expose globals here
+  window.createTestXlmAccounts = () => {
+    store.dispatch(actions.core.data.xlm.createTestAccounts())
+  }
 
-      store.dispatch(actions.goals.defineGoals())
+  store.dispatch(actions.goals.defineGoals())
 
-      return {
-        store,
-        history,
-        persistor
-      }
-    })
-}
-
-export default configureStore
+  return {
+    api,
+    store,
+    history,
+    persistor
+  }
+})

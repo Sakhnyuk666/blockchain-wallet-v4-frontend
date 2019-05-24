@@ -86,6 +86,7 @@ export default ({ rootUrl, post }) => {
 
   return {
     getSettings,
+    updateSettings,
     updateEmail,
     sendEmailConfirmation,
     resendVerifyEmail,

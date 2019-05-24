@@ -19,12 +19,10 @@ export class HDWallet extends Type {}
 
 export const isHDWallet = is(HDWallet)
 
-export const seedHex = HDWallet.define('seedHex')
 export const accounts = HDWallet.define('accounts')
 export const defaultAccountIdx = HDWallet.define('default_account_idx')
 export const mnemonicVerified = HDWallet.define('mnemonic_verified')
 
-export const selectSeedHex = view(seedHex)
 export const selectAccounts = view(accounts)
 export const selectDefaultAccountIdx = view(defaultAccountIdx)
 export const selectMnemonicVerified = compose(
@@ -44,29 +42,18 @@ export const selectContext = compose(
   selectAccounts
 )
 
-const shiftHDWallet = compose(
-  shiftIProp('seed_hex', 'seedHex'),
-  shift
-)
-
 export const fromJS = x => {
   if (is(HDWallet, x)) {
     return x
   }
-  const hdwalletCons = compose(
-    over(accounts, HDAccountList.fromJS),
-    hdw => shiftHDWallet(hdw).forward()
-  )
+  const hdwalletCons = compose(over(accounts, HDAccountList.fromJS))
   return hdwalletCons(new HDWallet(x))
 }
 
 export const toJS = pipe(
   HDWallet.guard,
   hd => {
-    const hdwalletDecons = compose(
-      hdw => shiftHDWallet(hdw).back(),
-      over(accounts, HDAccountList.toJS)
-    )
+    const hdwalletDecons = compose(over(accounts, HDAccountList.toJS))
     return hdwalletDecons(hd).toJS()
   }
 )
@@ -75,24 +62,24 @@ export const reviver = jsObject => {
   return new HDWallet(jsObject)
 }
 
-export const deriveAccountNodeAtIndex = (seedHex, index, network) => {
-  let seed = BIP39.mnemonicToSeed(BIP39.entropyToMnemonic(seedHex))
-  let masterNode = Bitcoin.HDNode.fromSeedBuffer(seed, network)
-  return masterNode
-    .deriveHardened(44)
-    .deriveHardened(0)
-    .deriveHardened(index)
-}
+export const generateAccount = async ({
+  deriveBIP32Key,
+  index,
+  label,
+  network
+}) => {
+  const key = await deriveBIP32Key({
+    network,
+    path: `m/44'/0'/${index}'`
+  })
 
-export const generateAccount = curry((index, label, network, seedHex) => {
-  let node = deriveAccountNodeAtIndex(seedHex, index, network)
+  const node = Bitcoin.HDNode.fromBase58(key)
   return HDAccount.fromJS(HDAccount.js(label, node, null))
-})
+}
 
 // encrypt :: Number -> String -> String -> HDWallet -> Task Error HDWallet
 export const encrypt = curry((iterations, sharedKey, password, hdWallet) => {
   const cipher = crypto.encryptSecPass(sharedKey, iterations, password)
-  const traverseSeed = traverseOf(seedHex, Task.of, cipher)
   const traverseAccounts = traverseOf(
     compose(
       accounts,
@@ -102,15 +89,12 @@ export const encrypt = curry((iterations, sharedKey, password, hdWallet) => {
     Task.of,
     cipher
   )
-  return Task.of(hdWallet)
-    .chain(traverseSeed)
-    .chain(traverseAccounts)
+  return Task.of(hdWallet).chain(traverseAccounts)
 })
 
 // decrypt :: Number -> String -> String -> HDWallet -> Task Error HDWallet
 export const decrypt = curry((iterations, sharedKey, password, hdWallet) => {
   const cipher = crypto.decryptSecPass(sharedKey, iterations, password)
-  const traverseSeed = traverseOf(seedHex, Task.of, cipher)
   const traverseAccounts = traverseOf(
     compose(
       accounts,
@@ -120,14 +104,11 @@ export const decrypt = curry((iterations, sharedKey, password, hdWallet) => {
     Task.of,
     cipher
   )
-  return Task.of(hdWallet)
-    .chain(traverseSeed)
-    .chain(traverseAccounts)
+  return Task.of(hdWallet).chain(traverseAccounts)
 })
 
 export const createNew = mnemonic =>
   fromJS({
-    seed_hex: mnemonic ? BIP39.mnemonicToEntropy(mnemonic) : '',
     passphrase: '',
     mnemonic_verified: false,
     default_account_idx: 0,
@@ -136,7 +117,6 @@ export const createNew = mnemonic =>
 
 export const js = (label, mnemonic, xpub, nAccounts, network) => {
   const seed = mnemonic ? BIP39.mnemonicToSeed(mnemonic) : ''
-  const seedHex = mnemonic ? BIP39.mnemonicToEntropy(mnemonic) : ''
   const masterNode = mnemonic
     ? Bitcoin.HDNode.fromSeedBuffer(seed, network)
     : undefined
@@ -147,7 +127,6 @@ export const js = (label, mnemonic, xpub, nAccounts, network) => {
   const account = i =>
     HDAccount.js(`${label}${i > 0 ? ` ${i + 1}` : ''}`, node(i), xpub)
   return {
-    seed_hex: seedHex,
     passphrase: '',
     mnemonic_verified: false,
     default_account_idx: 0,

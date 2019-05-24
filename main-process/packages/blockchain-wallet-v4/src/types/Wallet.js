@@ -5,20 +5,10 @@ import Task from 'data.task'
 import Maybe from 'data.maybe'
 import Bitcoin from 'bitcoinjs-lib'
 import memoize from 'fast-memoize'
-import BIP39 from 'bip39'
-import {
-  compose,
-  curry,
-  map,
-  is,
-  pipe,
-  __,
-  concat,
-  split,
-  isNil,
-  flip
-} from 'ramda'
+import { compose, curry, map, is, pipe, __, concat, split, isNil } from 'ramda'
 import { traversed, traverseOf, over, view, set } from 'ramda-lens'
+
+import { promiseToTask } from '../utils/functional'
 import * as crypto from '../walletCrypto'
 import { shift, shiftIProp } from './util'
 import Type from './Type'
@@ -36,7 +26,6 @@ import * as Options from './Options'
 
 /* Wallet :: {
   guid :: String
-  sharedKey :: String
   double_encryption :: Bool
   metadataHDNode :: String
   options :: Options
@@ -52,7 +41,6 @@ export class Wallet extends Type {}
 export const isWallet = is(Wallet)
 
 export const guid = Wallet.define('guid')
-export const sharedKey = Wallet.define('sharedKey')
 export const doubleEncryption = Wallet.define('double_encryption')
 export const metadataHDNode = Wallet.define('metadataHDNode')
 export const options = Wallet.define('options')
@@ -73,7 +61,6 @@ export const accounts = compose(
 )
 
 export const selectGuid = view(guid)
-export const selectSharedKey = view(sharedKey)
 export const selectOptions = view(options)
 export const selectmetadataHDNode = view(metadataHDNode)
 export const selectTxNotes = view(txNotes)
@@ -293,29 +280,42 @@ export const newHDWallet = curry((mnemonic, password, wallet) => {
   )
 })
 
-// newHDAccount :: String -> String? -> Wallet -> Task Error Wallet
-export const newHDAccount = curry((label, password, network, wallet) => {
-  let hdWallet = HDWalletList.selectHDWallet(selectHdWallets(wallet))
-  let index = hdWallet.accounts.size
-  let appendAccount = curry((w, account) => {
-    let accountsLens = compose(
-      hdWallets,
-      HDWalletList.hdwallet,
-      HDWallet.accounts
-    )
-    let accountWithIndex = set(HDAccount.index, index, account)
-    return over(accountsLens, accounts => accounts.push(accountWithIndex), w)
-  })
-  return applyCipher(
-    wallet,
-    password,
-    flip(crypto.decryptSecPass),
-    hdWallet.seedHex
-  )
-    .map(HDWallet.generateAccount(index, label, network))
-    .chain(applyCipher(wallet, password, HDAccount.encrypt))
-    .map(appendAccount(wallet))
-})
+// newHDAccount :: Object -> Wallet -> Task Error Wallet
+export const newHDAccount = curry(
+  ({ deriveBIP32Key, label, secondPassword, network }, wallet) => {
+    let hdWallet = HDWalletList.selectHDWallet(selectHdWallets(wallet))
+    let index = hdWallet.accounts.size
+    let appendAccount = curry((w, account) => {
+      let accountsLens = compose(
+        hdWallets,
+        HDWalletList.hdwallet,
+        HDWallet.accounts
+      )
+      let accountWithIndex = set(HDAccount.index, index, account)
+      return over(accountsLens, accounts => accounts.push(accountWithIndex), w)
+    })
+
+    const credentials = {
+      iterations: selectIterations(wallet),
+      secondPassword,
+      sharedKey: selectSharedKey(wallet)
+    }
+
+    return validateSecondPwd(Task.of, Task.rejected)(secondPassword, wallet)
+      .chain(() =>
+        promiseToTask(
+          HDWallet.generateAccount({
+            deriveBIP32Key: curry(deriveBIP32Key)(credentials),
+            index,
+            label,
+            network
+          })
+        )
+      )
+      .chain(applyCipher(wallet, secondPassword, HDAccount.encrypt))
+      .map(appendAccount(wallet))
+  }
+)
 
 // setLegacyAddressLabel :: String -> String -> Wallet -> Wallet
 export const setLegacyAddressLabel = curry((address, label, wallet) => {
@@ -434,15 +434,7 @@ export const traverseKeyValues = curry((of, f, wallet) => {
     of,
     f
   )
-  const trSeed = traverseOf(
-    compose(
-      hdWallets,
-      traversed,
-      HDWallet.seedHex
-    ),
-    of,
-    f
-  )
+
   const trXpriv = traverseOf(
     compose(
       hdWallets,
@@ -456,7 +448,6 @@ export const traverseKeyValues = curry((of, f, wallet) => {
   )
   return of(wallet)
     .chain(trAddr)
-    .chain(trSeed)
     .chain(trXpriv)
 })
 
@@ -600,52 +591,8 @@ export const getLegacyPrivateKeyWIF = curry(
   }
 )
 
-// getSeedHex :: String -> Wallet -> Task Error String
-export const getSeedHex = curry((secondPassword, wallet) => {
-  const seedHex = compose(
-    HDWallet.selectSeedHex,
-    HDWalletList.selectHDWallet,
-    selectHdWallets
-  )(wallet)
-  if (isDoubleEncrypted(wallet)) {
-    return validateSecondPwd(Task.of, Task.rejected)(
-      secondPassword,
-      wallet
-    ).chain(() =>
-      crypto.decryptSecPass(
-        selectSharedKey(wallet),
-        selectIterations(wallet),
-        secondPassword,
-        seedHex
-      )
-    )
-  } else {
-    return Task.of(seedHex)
-  }
-})
-
-// getMnemonic :: String -> Wallet -> Task Error String
-export const getMnemonic = curry((secondPassword, wallet) => {
-  const eitherToTask = e => e.fold(Task.rejected, Task.of)
-  const entropyToMnemonic = compose(
-    eitherToTask,
-    Either.try(BIP39.entropyToMnemonic)
-  )
-  const seedHex = getSeedHex(secondPassword, wallet)
-  return seedHex.chain(entropyToMnemonic)
-})
-
-export const js = (
-  guid,
-  sharedKey,
-  label,
-  mnemonic,
-  xpub,
-  nAccounts,
-  network
-) => ({
+export const js = (guid, label, mnemonic, xpub, nAccounts, network) => ({
   guid: guid,
-  sharedKey: sharedKey,
   tx_names: [],
   tx_notes: {},
   double_encryption: false,

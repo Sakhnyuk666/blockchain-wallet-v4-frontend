@@ -99,7 +99,6 @@ Testing is done via [Jest](https://facebook.github.io/jest/) and [Enzyme](http:/
  _Note: if you see errors that Jest cannot resolve package imports, you may need to run `yarn test` before testing specific packages (eg, `yarn test:frontend`)_
 
 #### Running Tests via Watch
- * `yarn test:watch` Watches and then runs desired tests
  * `yarn test:components:watch` Watches and then runs desired tests for only [blockchain-info-components](./packages/blockchain-info-components)
  * `yarn test:core:watch` Watches and then runs desired tests for only [blockchain-wallet-v4](./packages/blockchain-wallet-v4)
  * `yarn test:frontend:watch` Watches and then runs desired tests for only [blockchain-wallet-v4-frontend](./packages/blockchain-wallet-v4-frontend)

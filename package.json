@@ -1,0 +1,58 @@
+{
+  "name": "blockchain-wallet-v4",
+  "version": "4.8.4",
+  "license": "AGPL-3.0-or-later",
+  "private": true,
+  "author": {
+    "name": "Blockchain.info",
+    "url": "https://blockchain.com"
+  },
+  "homepage": "https://github.com/blockchain/blockchain-wallet-v4-frontend",
+  "bugs": {
+    "url": "https://github.com/blockchain/blockchain-wallet-v4-frontend/issues"
+  },
+  "description": "The frontend wallet application built with React/Redux.",
+  "keywords": [
+    "blockchain",
+    "blockchain.info",
+    "blockchain.com",
+    "react",
+    "redux",
+    "wallet"
+  ],
+  "engines": {
+    "node": ">= 10.2",
+    "yarn": ">= 1.12"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "yarn test"
+    }
+  },
+  "lint-staged": {
+    "linters": {
+      "*.js": [
+        "prettier --write",
+        "eslint --fix",
+        "git add"
+      ],
+      "*.json": [
+        "prettier --write",
+        "git add"
+      ]
+    },
+    "concurrent": false,
+    "ignore": [
+      "**/package.json"
+    ]
+  }
+}

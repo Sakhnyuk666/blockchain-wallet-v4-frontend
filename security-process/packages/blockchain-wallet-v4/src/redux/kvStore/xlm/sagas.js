@@ -26,8 +26,7 @@ export default ({ api, networks } = {}) => {
         ],
         tx_notes: {}
       }
-      const newkv = set(KVStoreEntry.value, xlm, kv)
-      yield put(A.createMetadataXlm(newkv))
+      return set(KVStoreEntry.value, xlm, kv)
     } catch (e) {
       throw new Error(
         '[NOT IMPLEMENTED] MISSING_SECOND_PASSWORD in core.createXlm saga'

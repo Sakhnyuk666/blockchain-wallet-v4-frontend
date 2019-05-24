@@ -1,20 +1,28 @@
 import { call, put, select } from 'redux-saga/effects'
-import { isNil, isEmpty } from 'ramda'
+import { curry, isNil, isEmpty } from 'ramda'
 import { set } from 'ramda-lens'
 import * as A from './actions'
 import { KVStoreEntry } from '../../../types'
 import { getMetadataXpriv } from '../root/selectors'
 import { derivationMap, XLM } from '../config'
-import { getMnemonic } from '../../wallet/selectors'
 import { getKeyPair } from '../../../utils/xlm'
 import { callTask } from '../../../utils/functional'
+import { getPbkdf2Iterations } from '../../wallet/selectors'
 
-export default ({ api, networks } = {}) => {
+export default ({ api, networks, securityProcess } = {}) => {
   const createXlm = function*({ kv, password }) {
     try {
-      const mnemonicT = yield select(getMnemonic, password)
-      const mnemonic = yield callTask(mnemonicT)
-      const keypair = getKeyPair(mnemonic)
+      const credentials = {
+        iterations: yield select(getPbkdf2Iterations),
+        secondPassword: password
+      }
+
+      const keypair = yield call(getKeyPair, {
+        deriveSLIP10ed25519Key: curry(securityProcess.deriveSLIP10ed25519Key)(
+          credentials
+        )
+      })
+
       const xlm = {
         default_account_idx: 0,
         accounts: [
@@ -43,7 +51,8 @@ export default ({ api, networks } = {}) => {
       yield put(A.fetchMetadataXlmLoading())
       const newkv = yield callTask(api.fetchKVStore(kv))
       if (isNil(newkv.value) || isEmpty(newkv.value)) {
-        yield call(secondPasswordSagaEnhancer(createXlm), { kv })
+        const newkv = yield call(secondPasswordSagaEnhancer(createXlm), { kv })
+        yield put(A.createMetadataXlm(newkv))
       } else {
         yield put(A.fetchMetadataXlmSuccess(newkv))
       }

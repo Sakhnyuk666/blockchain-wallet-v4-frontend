@@ -1,88 +1,68 @@
-export default ({ rootUrl, post }) => {
-  const getSettings = (guid, sharedKey) =>
-    post({
-      url: rootUrl,
-      endPoint: '/wallet',
-      data: { guid, sharedKey, method: 'get-info', format: 'json' }
-    })
+export default ({ securityProcess: { getSettings, updateSettings } }) => {
+  const updateEmail = (guid, email) =>
+    updateSettings(guid, 'update-email', email)
 
-  const updateSettings = (guid, sharedKey, method, payload, querystring = '') =>
-    post({
-      url: rootUrl,
-      endPoint: querystring ? `/wallet?${querystring}` : '/wallet',
-      data: { guid, sharedKey, method, payload, length: (payload + '').length }
-    })
+  const sendConfirmationCodeEmail = (guid, email) =>
+    updateSettings(guid, 'send-verify-email-mail', email)
 
-  const updateEmail = (guid, sharedKey, email) =>
-    updateSettings(guid, sharedKey, 'update-email', email)
+  const sendEmailConfirmation = (guid, email) =>
+    updateSettings(guid, 'update-email', email)
 
-  const sendConfirmationCodeEmail = (guid, sharedKey, email) =>
-    updateSettings(guid, sharedKey, 'send-verify-email-mail', email)
+  const resendVerifyEmail = (guid, email) =>
+    updateSettings(guid, 'resend-verify-email', email)
 
-  const sendEmailConfirmation = (guid, sharedKey, email) =>
-    updateSettings(guid, sharedKey, 'update-email', email)
+  const verifyEmail = (guid, code) =>
+    updateSettings(guid, 'verify-email-code', code)
 
-  const resendVerifyEmail = (guid, sharedKey, email) =>
-    updateSettings(guid, sharedKey, 'resend-verify-email', email)
+  const updateMobile = (guid, mobile) =>
+    updateSettings(guid, 'update-sms', mobile)
 
-  const verifyEmail = (guid, sharedKey, code) =>
-    updateSettings(guid, sharedKey, 'verify-email-code', code)
+  const verifyMobile = (guid, code) => updateSettings(guid, 'verify-sms', code)
 
-  const updateMobile = (guid, sharedKey, mobile) =>
-    updateSettings(guid, sharedKey, 'update-sms', mobile)
+  const updateLanguage = (guid, language) =>
+    updateSettings(guid, 'update-language', language)
 
-  const verifyMobile = (guid, sharedKey, code) =>
-    updateSettings(guid, sharedKey, 'verify-sms', code)
+  const updateCurrency = (guid, currency) =>
+    updateSettings(guid, 'update-currency', currency)
 
-  const updateLanguage = (guid, sharedKey, language) =>
-    updateSettings(guid, sharedKey, 'update-language', language)
+  const updateLastTxTime = (guid, time) =>
+    updateSettings(guid, 'update-last-tx-time', time)
 
-  const updateCurrency = (guid, sharedKey, currency) =>
-    updateSettings(guid, sharedKey, 'update-currency', currency)
+  const updateLoggingLevel = (guid, loggingLevel) =>
+    updateSettings(guid, 'update-logging-level', loggingLevel)
 
-  const updateLastTxTime = (guid, sharedKey, time) =>
-    updateSettings(guid, sharedKey, 'update-last-tx-time', time)
+  const updateIpLock = (guid, ipLock) =>
+    updateSettings(guid, 'update-ip-lock', ipLock)
 
-  const updateLoggingLevel = (guid, sharedKey, loggingLevel) =>
-    updateSettings(guid, sharedKey, 'update-logging-level', loggingLevel)
+  const updateIpLockOn = (guid, ipLockOn) =>
+    updateSettings(guid, 'update-ip-lock-on', ipLockOn)
 
-  const updateIpLock = (guid, sharedKey, ipLock) =>
-    updateSettings(guid, sharedKey, 'update-ip-lock', ipLock)
+  const updateBlockTorIps = (guid, blockTorIps) =>
+    updateSettings(guid, 'update-block-tor-ips', blockTorIps)
 
-  const updateIpLockOn = (guid, sharedKey, ipLockOn) =>
-    updateSettings(guid, sharedKey, 'update-ip-lock-on', ipLockOn)
+  const updateHint = (guid, hint) =>
+    updateSettings(guid, 'update-password-hint1', hint)
 
-  const updateBlockTorIps = (guid, sharedKey, blockTorIps) =>
-    updateSettings(guid, sharedKey, 'update-block-tor-ips', blockTorIps)
+  const updateAuthType = (guid, authType) =>
+    updateSettings(guid, 'update-auth-type', authType)
 
-  const updateHint = (guid, sharedKey, hint) =>
-    updateSettings(guid, sharedKey, 'update-password-hint1', hint)
+  const updateAuthTypeNeverSave = (guid, authTypeNeverSave) =>
+    updateSettings(guid, 'update-never-save-auth-type', authTypeNeverSave)
 
-  const updateAuthType = (guid, sharedKey, authType) =>
-    updateSettings(guid, sharedKey, 'update-auth-type', authType)
+  const getGoogleAuthenticatorSecretUrl = guid =>
+    updateSettings(guid, 'generate-google-secret', '')
 
-  const updateAuthTypeNeverSave = (guid, sharedKey, authTypeNeverSave) =>
-    updateSettings(
-      guid,
-      sharedKey,
-      'update-never-save-auth-type',
-      authTypeNeverSave
-    )
+  const enableGoogleAuthenticator = (guid, code) =>
+    updateSettings(guid, 'update-auth-type', '4', `code=${code}`)
 
-  const getGoogleAuthenticatorSecretUrl = (guid, sharedKey) =>
-    updateSettings(guid, sharedKey, 'generate-google-secret', '')
+  const enableYubikey = (guid, code) =>
+    updateSettings(guid, 'update-yubikey', code)
 
-  const enableGoogleAuthenticator = (guid, sharedKey, code) =>
-    updateSettings(guid, sharedKey, 'update-auth-type', '4', `code=${code}`)
+  const enableNotifications = (guid, value) =>
+    updateSettings(guid, 'update-notifications-on', value)
 
-  const enableYubikey = (guid, sharedKey, code) =>
-    updateSettings(guid, sharedKey, 'update-yubikey', code)
-
-  const enableNotifications = (guid, sharedKey, value) =>
-    updateSettings(guid, sharedKey, 'update-notifications-on', value)
-
-  const updateNotificationsType = (guid, sharedKey, value) =>
-    updateSettings(guid, sharedKey, 'update-notifications-type', value)
+  const updateNotificationsType = (guid, value) =>
+    updateSettings(guid, 'update-notifications-type', value)
 
   return {
     getSettings,

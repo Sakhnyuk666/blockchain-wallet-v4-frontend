@@ -1,3 +1,5 @@
+import * as R from 'ramda'
+
 import * as Wrapper from './Wrapper'
 import * as HDWallet from './HDWallet'
 import * as HDAccount from './HDAccount'
@@ -17,6 +19,11 @@ import * as Options from './Options'
 import * as KVStoreEntry from './KVStoreEntry'
 import Remote from '../remote'
 
+const replaceError = error => ({
+  ...R.pick([`message`, `stack`], error),
+  ...error
+})
+
 const serializer = {
   replacer: function (key, value) {
     // Remove all functions from the state
@@ -27,10 +34,13 @@ const serializer = {
     if (key === 'syncErrors') {
       return ''
     }
-    return value
+
+    return value instanceof Error ? replaceError(value) : value
   },
   reviver: function (key, value) {
-    if (
+    if (value && value.type === 'Buffer') {
+      return Buffer.from(value.data)
+    } else if (
       typeof value === 'object' &&
       value !== null &&
       '__serializedType__' in value

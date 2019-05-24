@@ -11,17 +11,17 @@ import userCredentials from './userCredentials/sagas'
 import shapeShift from './shapeShift/sagas'
 import xlm from './xlm/sagas'
 
-export default ({ api, networks }) => ({
-  bch: bch({ api, networks }),
-  btc: btc({ api, networks }),
-  bsv: bsv({ api, networks }),
-  ethereum: eth({ api, networks }),
-  root: root({ api, networks }),
-  lockbox: lockbox({ api, networks }),
-  buySell: buySell({ api, networks }),
-  whatsNew: whatsNew({ api, networks }),
-  contacts: contacts({ api, networks }),
-  shapeShift: shapeShift({ api, networks }),
-  userCredentials: userCredentials({ api, networks }),
-  xlm: xlm({ api, networks })
+export default (...args) => ({
+  bch: bch(...args),
+  btc: btc(...args),
+  bsv: bsv(...args),
+  ethereum: eth(...args),
+  root: root(...args),
+  lockbox: lockbox(...args),
+  buySell: buySell(...args),
+  whatsNew: whatsNew(...args),
+  contacts: contacts(...args),
+  shapeShift: shapeShift(...args),
+  userCredentials: userCredentials(...args),
+  xlm: xlm(...args)
 })
